@@ -39,20 +39,41 @@ The result is a perceived latency under 200ms — the difference between a conve
 WebRTT runs over WebSocket. Messages are encoded with MessagePack.
 
 ```
-Client A                    Edge Node                   Client B
-────────                    ─────────                   ────────
-SPEECH_START ─────────────►
-AUDIO_CHUNK(seq=1) ────────►
-                              STT: partial transcript
-                              MT: speculative translation
-                              TTS: begin synthesis
-                              ◄──────────── HYPOTHESIS(conf=0.7)
-AUDIO_CHUNK(seq=2) ────────►
-                              STT: updated transcript
-                              ◄──────────── HYPOTHESIS(conf=0.85)
-SPEECH_END ────────────────►
-                              STT: final transcript
-                              ◄──────────── COMMIT
+┌─────────────────┐                         ┌─────────────────┐
+│    Client A     │                         │    Client B     │
+│   (speaker)     │                         │  (listener)     │
+└────────┬────────┘                         └────────┬────────┘
+         │                                           │
+         │  SPEECH_START                             │
+         │ ─────────────────────────────►            │
+         │                                           │
+         │  AUDIO_CHUNK(seq=1)                       │
+         │ ─────────────────────────────►            │
+         │                          ┌────────────────┴────────────────┐
+         │                          │  STT: "hello, how..."  (partial) │
+         │                          │  MT:  "olá, como..."  (speculate) │
+         │                          │  TTS: begin synthesis             │
+         │                          └────────────────┬────────────────┘
+         │                                           │  HYPOTHESIS(conf=0.72)
+         │                            ◄──────────────┤
+         │                                           │  [client plays audio]
+         │  AUDIO_CHUNK(seq=2)                       │
+         │ ─────────────────────────────►            │
+         │                          ┌────────────────┴────────────────┐
+         │                          │  STT: "hello, how are you"       │
+         │                          │  MT:  "olá, como vai você"       │
+         │                          └────────────────┬────────────────┘
+         │                                           │  HYPOTHESIS(conf=0.91)
+         │                            ◄──────────────┤
+         │  SPEECH_END                               │  [client updates audio]
+         │ ─────────────────────────────►            │
+         │                          ┌────────────────┴────────────────┐
+         │                          │  STT: "hello, how are you?"      │
+         │                          │  MT:  final — matches hypothesis  │
+         │                          └────────────────┬────────────────┘
+         │                                           │  COMMIT
+         │                            ◄──────────────┤
+         │                                           │  [audio confirmed]
 ```
 
 Full specification: [`spec/RFC.md`](https://github.com/webrtt/spec/blob/main/RFC.md)
@@ -96,4 +117,4 @@ Reference implementation: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2
 
 ---
 
-*Built by [Surf No Digital](https://surfnodigital.com) — AI automation and infrastructure.*
+*Built by [Surf No Digital](https://surfnodigital.com.br) — AI automation and infrastructure.*
